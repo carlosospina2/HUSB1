@@ -1,70 +1,36 @@
 package com.eventify.husb1.repository;
 
 import com.eventify.husb1.model.Venue;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
-
 /**
- * Repositorio en memoria para la entidad Venue.
+ * Repositorio JPA para la entidad Venue.
  *
- * Simula una base de datos utilizando una List<Venue>.
- * Sigue exactamente el mismo contrato que EventRepository para
- * mantener coherencia en la capa de acceso a datos.
+ * Al extender JpaRepository<Venue, Long> obtenemos gratuitamente:
+ *   - save(venue)           → INSERT o UPDATE
+ *   - findById(id)          → SELECT por PK → Optional<Venue>
+ *   - findAll()             → SELECT todos
+ *   - findAll(Pageable)     → SELECT paginado + ordenado
+ *   - deleteById(id)        → DELETE por PK
+ *   - existsById(id)        → SELECT COUNT > 0
+ *   - count()               → SELECT COUNT(*)
  *
- * @Repository registra este Bean en el contexto de Spring como
- * componente de la capa de persistencia.
+ * Derived Queries (Spring Data genera el SQL a partir del nombre del método):
+ *   findByNombreContainingIgnoreCase → LIKE %nombre% (case-insensitive)
  */
 @Repository
-public class VenueRepository {
-
-    /** Colección en memoria que actúa como tabla de venues. */
-    private final List<Venue> storage = new ArrayList<>();
-
-    /** Contador autoincremental para generar IDs únicos. */
-    private final AtomicLong idCounter = new AtomicLong(1);
+public interface VenueRepository extends JpaRepository<Venue, Long> {
 
     /**
-     * Persiste un nuevo venue asignándole un ID generado automáticamente.
+     * Busca venues cuyo nombre contenga el texto dado (sin importar mayúsculas).
+     * Ejemplo: findByNombreContainingIgnoreCase("teatro") encuentra "Teatro Mayor".
      *
-     * @param venue Venue a guardar (sin ID).
-     * @return El mismo venue con el ID asignado.
+     * @param nombre  Fragmento de texto a buscar.
+     * @param pageable Parámetros de paginación y ordenamiento.
+     * @return Página de venues que coinciden.
      */
-    public Venue save(Venue venue) {
-        venue.setId(idCounter.getAndIncrement());
-        storage.add(venue);
-        return venue;
-    }
-
-    /**
-     * Retorna todos los venues almacenados.
-     *
-     * @return Lista de venues (vacía si no hay ninguno registrado).
-     */
-    public List<Venue> findAll() {
-        return new ArrayList<>(storage);
-    }
-
-    /**
-     * Busca un venue por su ID.
-     *
-     * @param id Identificador del venue.
-     * @return Optional con el venue si existe, vacío en caso contrario.
-     */
-    public Optional<Venue> findById(Long id) {
-        return storage.stream()
-                .filter(v -> v.getId().equals(id))
-                .findFirst();
-    }
-
-    /**
-     * Elimina todos los venues. Útil para reiniciar el seeder en pruebas.
-     */
-    public void clear() {
-        storage.clear();
-        idCounter.set(1);
-    }
+    Page<Venue> findByNombreContainingIgnoreCase(String nombre, Pageable pageable);
 }

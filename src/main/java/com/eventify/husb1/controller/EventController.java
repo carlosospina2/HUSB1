@@ -3,113 +3,131 @@ package com.eventify.husb1.controller;
 import com.eventify.husb1.model.Event;
 import com.eventify.husb1.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 /**
- * Controlador REST para la entidad Event.
+ * Controlador REST para Event — CRUD completo con paginación.
  *
- * Expone los endpoints de la API bajo el prefijo /api/events.
- * Delega toda la lógica de negocio a EventService — el Controller
- * solo traduce peticiones HTTP a llamadas de servicio y respuestas HTTP.
- *
- * Inyección por Constructor:
- *   EventService se inyecta por constructor para mantener
- *   coherencia con el patrón de inyección del proyecto.
- *
- * Estados HTTP:
- *   POST → 201 Created  (recurso creado exitosamente)
- *   GET  → 200 OK       (consulta exitosa, puede retornar lista vacía)
- *   Validación fallida → 400 Bad Request
+ * Endpoints:
+ *   POST   /api/events          → 201 Created
+ *   GET    /api/events          → 200 OK  (paginado: ?page=0&size=10&sort=nombre,asc)
+ *   GET    /api/events/{id}     → 200 OK  | 404 Not Found
+ *   PUT    /api/events/{id}     → 200 OK  | 404 Not Found | 400 Bad Request
+ *   DELETE /api/events/{id}     → 204 No Content | 404 Not Found
  */
 @RestController
 @RequestMapping("/api/events")
-@Tag(name = "Eventos", description = "Operaciones de registro y consulta de Eventos")
+@Tag(name = "Eventos", description = "CRUD completo de Eventos con paginación y ordenamiento")
 public class EventController {
 
     private final EventService eventService;
 
-    /**
-     * Constructor — Spring inyecta automáticamente EventService.
-     */
     public EventController(EventService eventService) {
         this.eventService = eventService;
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/events — Registrar evento
+    // POST /api/events — Crear
     // -------------------------------------------------------------------------
 
-    /**
-     * Registra un nuevo evento en el catálogo.
-     *
-     * Escenario 1 (Camino Feliz):   datos válidos → 201 Created + objeto creado.
-     * Escenario 2 (Camino de Error): nombre vacío → 400 Bad Request + mensaje.
-     */
-    @Operation(
-            summary = "Registrar un nuevo evento",
-            description = "Valida los datos, persiste el evento y retorna el objeto creado con su ID."
-    )
+    @Operation(summary = "Registrar un nuevo evento",
+               description = "Crea un evento y lo persiste en la BD. Retorna el objeto con ID asignado.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Evento creado exitosamente"),
-            @ApiResponse(responseCode = "400", description = "Datos inválidos (nombre vacío o fecha nula)")
+            @ApiResponse(responseCode = "201", description = "Evento creado"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "404", description = "Venue referenciado no existe")
     })
     @PostMapping
     public ResponseEntity<?> registrar(@RequestBody Event event) {
         try {
-            Event creado = eventService.registrar(event);
-            return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(eventService.registrar(event));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
         }
+        // ResourceNotFoundException (venue inexistente) → Spring convierte en 404
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/events — Listar todos los eventos
+    // GET /api/events — Listar paginado
     // -------------------------------------------------------------------------
 
-    /**
-     * Retorna el catálogo completo de eventos.
-     *
-     * Escenario 3 (Caso de Borde): sin datos → 200 OK + lista vacía [].
-     */
-    @Operation(
-            summary = "Listar todos los eventos",
-            description = "Retorna todos los eventos registrados. Si no hay ninguno, retorna una lista vacía."
-    )
+    @Operation(summary = "Listar eventos (paginado)",
+               description = "Soporta ?page=0&size=10&sort=nombre,asc y filtro ?nombre=texto.")
     @ApiResponse(responseCode = "200", description = "Consulta exitosa")
     @GetMapping
-    public ResponseEntity<List<Event>> listarTodos() {
-        return ResponseEntity.ok(eventService.listarTodos());
+    public ResponseEntity<Page<Event>> listar(
+            @Parameter(description = "Filtro opcional por nombre (parcial, case-insensitive)")
+            @RequestParam(required = false) String nombre,
+            @PageableDefault(size = 10, sort = "nombre", direction = Sort.Direction.ASC)
+            Pageable pageable) {
+
+        Page<Event> pagina = (nombre != null && !nombre.isBlank())
+                ? eventService.buscarPorNombre(nombre, pageable)
+                : eventService.listarPaginado(pageable);
+
+        return ResponseEntity.ok(pagina);
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/events/{id} — Buscar evento por ID
+    // GET /api/events/{id} — Buscar por ID
     // -------------------------------------------------------------------------
 
-    /**
-     * Busca y retorna un evento específico por su ID.
-     */
-    @Operation(
-            summary = "Buscar evento por ID",
-            description = "Retorna el evento correspondiente al ID proporcionado."
-    )
+    @Operation(summary = "Buscar evento por ID")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evento encontrado"),
-            @ApiResponse(responseCode = "400", description = "No existe un evento con ese ID")
+            @ApiResponse(responseCode = "404", description = "Evento no encontrado")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<Event> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.buscarPorId(id));
+    }
+
+    // -------------------------------------------------------------------------
+    // PUT /api/events/{id} — Actualizar
+    // -------------------------------------------------------------------------
+
+    @Operation(summary = "Actualizar un evento existente",
+               description = "Reemplaza todos los campos del evento. Retorna 404 si el ID no existe.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Evento actualizado"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "404", description = "Evento no encontrado")
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizar(@PathVariable Long id,
+                                        @RequestBody Event datos) {
         try {
-            return ResponseEntity.ok(eventService.buscarPorId(id));
+            return ResponseEntity.ok(eventService.actualizar(id, datos));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // DELETE /api/events/{id} — Eliminar
+    // -------------------------------------------------------------------------
+
+    @Operation(summary = "Eliminar un evento",
+               description = "Borra el evento de la BD. Retorna 204 si fue exitoso, 404 si no existe.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Evento eliminado correctamente"),
+            @ApiResponse(responseCode = "404", description = "Evento no encontrado")
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        eventService.eliminar(id);
+        // Escenario 4: eliminación exitosa → 204 No Content (sin cuerpo en la respuesta)
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,99 +1,159 @@
 package com.eventify.husb1.service;
 
+import com.eventify.husb1.exception.ResourceNotFoundException;
 import com.eventify.husb1.model.Event;
 import com.eventify.husb1.repository.EventRepository;
+import com.eventify.husb1.repository.VenueRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 /**
- * Capa de negocio para la entidad Event.
+ * Capa de negocio para Event.
  *
  * Responsabilidades:
- *   1. Validar los datos del evento antes de persistirlo.
- *   2. Orquestar la comunicación con EventRepository.
- *   3. Mantener las reglas de negocio aisladas del Controller.
- *
- * Inyección por Constructor:
- *   Se inyecta EventRepository a través del constructor (no @Autowired en campo)
- *   para facilitar el desacoplamiento y la creación de mocks en tests unitarios.
+ *   1. Validar datos de negocio antes de persistir.
+ *   2. Verificar que el Venue referenciado exista.
+ *   3. Lanzar ResourceNotFoundException (→ 404) cuando el evento no existe.
+ *   4. Exponer listados paginados y ordenados mediante Pageable.
+ *   5. CRUD completo: crear, leer, actualizar, eliminar.
  */
 @Service
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final VenueRepository venueRepository;
 
     /**
-     * Constructor — Spring inyecta automáticamente el bean EventRepository.
-     * Al ser el único constructor, @Autowired es implícito en Spring Boot.
+     * Inyección por constructor de ambos repositorios.
+     * VenueRepository se usa para verificar que el venue referenciado exista.
      */
-    public EventService(EventRepository eventRepository) {
+    public EventService(EventRepository eventRepository,
+                        VenueRepository venueRepository) {
         this.eventRepository = eventRepository;
+        this.venueRepository  = venueRepository;
     }
 
     // -------------------------------------------------------------------------
-    // Casos de uso
+    // CREATE
     // -------------------------------------------------------------------------
 
     /**
-     * Registra un nuevo evento tras validar sus datos.
+     * Registra un nuevo evento.
+     * Valida datos y verifica que el venue referenciado exista en la BD.
      *
-     * Validaciones aplicadas:
-     *   - El nombre no puede ser nulo ni estar vacío.
-     *   - La fecha no puede ser nula.
-     *
-     * @param event Objeto Event enviado desde el Controller.
-     * @return El evento persistido con su ID asignado.
-     * @throws IllegalArgumentException si alguna validación falla.
+     * @param event Datos del evento a crear (sin ID).
+     * @return Event persistido con ID generado por la BD.
      */
     public Event registrar(Event event) {
-        validarEvento(event);
+        validar(event);
         return eventRepository.save(event);
     }
 
+    // -------------------------------------------------------------------------
+    // READ — listado paginado
+    // -------------------------------------------------------------------------
+
     /**
-     * Retorna el catálogo completo de eventos.
-     * Si no hay eventos registrados retorna una lista vacía (nunca null).
+     * Retorna una página de eventos ordenables.
+     * Acepta ?page=0&size=5&sort=nombre,asc desde la URL.
      *
-     * @return Lista de todos los eventos almacenados.
+     * Escenario 3: 50 eventos, page=0, size=5 → 5 registros + totalPages=10.
+     *
+     * @param pageable Parámetros de paginación inyectados por Spring MVC.
+     * @return Page<Event> con datos y metadatos de paginación.
      */
-    public List<Event> listarTodos() {
-        return eventRepository.findAll();
+    public Page<Event> listarPaginado(Pageable pageable) {
+        return eventRepository.findAll(pageable);
     }
+
+    /**
+     * Busca eventos cuyo nombre contenga el texto dado (case-insensitive), paginado.
+     */
+    public Page<Event> buscarPorNombre(String nombre, Pageable pageable) {
+        return eventRepository.findByNombreContainingIgnoreCase(nombre, pageable);
+    }
+
+    // -------------------------------------------------------------------------
+    // READ — por ID
+    // -------------------------------------------------------------------------
 
     /**
      * Busca un evento por su ID.
      *
-     * @param id Identificador del evento.
-     * @return El evento encontrado.
-     * @throws IllegalArgumentException si el evento no existe.
+     * @throws ResourceNotFoundException (→ HTTP 404) si no existe.
      */
     public Event buscarPorId(Long id) {
         return eventRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No existe un evento con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id));
     }
 
     // -------------------------------------------------------------------------
-    // Validaciones de negocio (privadas — solo visibles en esta capa)
+    // UPDATE (PUT)
     // -------------------------------------------------------------------------
 
     /**
-     * Valida que el evento cumpla las reglas mínimas de negocio.
-     * Escenario 2: un nombre vacío debe ser rechazado aquí, antes de
-     * llegar al repositorio.
+     * Actualiza un evento existente.
+     * Verifica existencia antes de modificar (→ 404 si no existe).
+     *
+     * @param id    ID del evento a actualizar.
+     * @param datos Nuevos datos a aplicar.
+     * @return Event actualizado y persistido.
      */
-    private void validarEvento(Event event) {
-        if (event == null) {
+    public Event actualizar(Long id, Event datos) {
+        // 1. Verificar existencia — lanza 404 si no existe
+        Event existente = buscarPorId(id);
+
+        // 2. Validar nuevos datos
+        validar(datos);
+
+        // 3. Aplicar cambios
+        existente.setNombre(datos.getNombre());
+        existente.setFecha(datos.getFecha());
+        existente.setDescripcion(datos.getDescripcion());
+        existente.setVenueId(datos.getVenueId());
+
+        return eventRepository.save(existente);
+    }
+
+    // -------------------------------------------------------------------------
+    // DELETE
+    // -------------------------------------------------------------------------
+
+    /**
+     * Elimina un evento de la BD.
+     * Lanza 404 si el ID no existe.
+     *
+     * Escenario 4: eliminación exitosa → el controller retorna 204 No Content.
+     *
+     * @param id ID del evento a eliminar.
+     */
+    public void eliminar(Long id) {
+        if (!eventRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Event", id);
+        }
+        eventRepository.deleteById(id);
+    }
+
+    // -------------------------------------------------------------------------
+    // Validaciones de negocio
+    // -------------------------------------------------------------------------
+
+    private void validar(Event e) {
+        if (e == null) {
             throw new IllegalArgumentException("El evento no puede ser nulo.");
         }
-        if (event.getNombre() == null || event.getNombre().isBlank()) {
+        if (e.getNombre() == null || e.getNombre().isBlank()) {
             throw new IllegalArgumentException(
                     "El nombre del evento es obligatorio y no puede estar vacío.");
         }
-        if (event.getFecha() == null) {
+        if (e.getFecha() == null) {
             throw new IllegalArgumentException(
                     "La fecha del evento es obligatoria.");
+        }
+        // Verificar que el venue referenciado exista, si se proporcionó
+        if (e.getVenueId() != null && !venueRepository.existsById(e.getVenueId())) {
+            throw new ResourceNotFoundException("Venue", e.getVenueId());
         }
     }
 }

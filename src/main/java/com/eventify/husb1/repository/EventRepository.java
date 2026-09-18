@@ -1,70 +1,41 @@
 package com.eventify.husb1.repository;
 
 import com.eventify.husb1.model.Event;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Repositorio en memoria para la entidad Event.
+ * Repositorio JPA para la entidad Event.
  *
- * Simula una base de datos utilizando una List<Event>.
- * El ID se genera de forma automática e incremental con AtomicLong
- * para garantizar seguridad ante accesos concurrentes básicos.
+ * Hereda de JpaRepository<Event, Long> todos los métodos CRUD estándar
+ * más soporte completo para Pageable y Sort.
  *
- * @Repository le indica a Spring que este Bean pertenece a la capa
- * de acceso a datos y habilita la traducción de excepciones de persistencia.
+ * Derived Queries declaradas:
+ *   findByNombreContainingIgnoreCase → búsqueda parcial por nombre.
+ *   findByVenueId                   → todos los eventos de un venue.
  */
 @Repository
-public class EventRepository {
-
-    /** Colección en memoria que actúa como tabla de eventos. */
-    private final List<Event> storage = new ArrayList<>();
-
-    /** Contador autoincremental para generar IDs únicos. */
-    private final AtomicLong idCounter = new AtomicLong(1);
+public interface EventRepository extends JpaRepository<Event, Long> {
 
     /**
-     * Persiste un nuevo evento asignándole un ID generado automáticamente.
+     * Busca eventos cuyo nombre contenga el texto dado (case-insensitive).
+     * Soporta paginación: ?page=0&size=5&sort=nombre,asc
      *
-     * @param event Evento a guardar (sin ID).
-     * @return El mismo evento con el ID asignado.
+     * @param nombre   Fragmento de texto a buscar.
+     * @param pageable Parámetros de paginación y ordenamiento.
+     * @return Página de eventos que coinciden.
      */
-    public Event save(Event event) {
-        event.setId(idCounter.getAndIncrement());
-        storage.add(event);
-        return event;
-    }
+    Page<Event> findByNombreContainingIgnoreCase(String nombre, Pageable pageable);
 
     /**
-     * Retorna todos los eventos almacenados.
+     * Retorna todos los eventos asociados a un Venue específico.
      *
-     * @return Lista de eventos (vacía si no hay ninguno registrado).
+     * @param venueId ID del venue.
+     * @return Lista de eventos del venue.
      */
-    public List<Event> findAll() {
-        return new ArrayList<>(storage);
-    }
-
-    /**
-     * Busca un evento por su ID.
-     *
-     * @param id Identificador del evento.
-     * @return Optional con el evento si existe, vacío en caso contrario.
-     */
-    public Optional<Event> findById(Long id) {
-        return storage.stream()
-                .filter(e -> e.getId().equals(id))
-                .findFirst();
-    }
-
-    /**
-     * Elimina todos los eventos. Útil para el seeder en pruebas.
-     */
-    public void clear() {
-        storage.clear();
-        idCounter.set(1);
-    }
+    List<Event> findByVenueId(Long venueId);
 }

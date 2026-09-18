@@ -5,9 +5,6 @@
                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- =====================================================================
-         Spring Boot Parent — gestiona versiones de todas las dependencias
-    ====================================================================== -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -15,33 +12,40 @@
         <relativePath/>
     </parent>
 
-    <!-- =====================================================================
-         Coordenadas del proyecto
-    ====================================================================== -->
     <groupId>com.eventify</groupId>
     <artifactId>husb1</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Eventify</name>
-    <description>Plataforma de gestión de Eventos y Venues — HU SB1</description>
+    <description>Plataforma de gestión de Eventos y Venues — HU SB2 (JPA)</description>
 
-    <!-- =====================================================================
-         Propiedades globales
-    ====================================================================== -->
     <properties>
         <java.version>21</java.version>
-        <!-- Versión de springdoc compatible con Spring Boot 3.x -->
         <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
-    <!-- =====================================================================
-         Dependencias
-    ====================================================================== -->
     <dependencies>
 
         <!-- Spring MVC + Tomcat embebido -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA + Hibernate -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!--
+            Base de datos H2 en memoria (o modo archivo para persistencia real).
+            scope: runtime — solo se necesita en ejecución, no en compilación.
+            En pruebas @DataJpaTest Spring Boot la detecta y la configura sola.
+        -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Swagger / OpenAPI UI -->
@@ -51,14 +55,14 @@
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- Lombok: reduce código de plomería (@Getter, @Builder, etc.) -->
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- Testing: JUnit 5 + Mockito + Spring Test (scope test) -->
+        <!-- Testing: JUnit 5 + Mockito + @DataJpaTest -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -67,16 +71,12 @@
 
     </dependencies>
 
-    <!-- =====================================================================
-         Build
-    ====================================================================== -->
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <!-- Excluir Lombok del JAR final -->
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

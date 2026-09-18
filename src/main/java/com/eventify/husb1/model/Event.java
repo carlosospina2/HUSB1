@@ -1,5 +1,6 @@
 package com.eventify.husb1.model;
 
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,35 +9,45 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 /**
- * Entidad que representa un Evento en la plataforma Eventify.
+ * Entidad JPA que representa un Evento en Eventify.
  *
- * Lombok elimina el código de plomería:
- *   @Data          → genera getters, setters, equals, hashCode y toString.
- *   @Builder       → patrón builder para construcción fluida de objetos.
- *   @NoArgsConstructor / @AllArgsConstructor → constructores necesarios
- *                   para deserialización JSON y tests.
+ * @Entity  → Hibernate la mapea a la tabla "events".
+ * @Table   → nombre explícito de la tabla en la BD.
+ *
+ * Relación con Venue:
+ *   Se mantiene como FK simple (venue_id) para esta fase.
+ *   La relación @ManyToOne puede añadirse en una iteración futura
+ *   sin romper la estructura actual.
  */
+@Entity
+@Table(name = "events")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Event {
 
-    /** Identificador único del evento (generado en el repositorio). */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Nombre del evento. No puede ser nulo ni vacío (validado en el Service). */
+    /** Nombre del evento. NOT NULL, máximo 200 caracteres. */
+    @Column(nullable = false, length = 200)
     private String nombre;
 
-    /** Fecha de realización del evento. */
+    /** Fecha de realización. NOT NULL. */
+    @Column(nullable = false)
     private LocalDate fecha;
 
-    /** Descripción detallada del evento. */
+    /** Descripción detallada. Texto largo, opcional. */
+    @Column(columnDefinition = "TEXT")
     private String descripcion;
 
     /**
-     * Identificador del Venue donde se realizará el evento.
-     * Permite asociar Event → Venue sin necesidad de persistencia relacional.
+     * ID del Venue asociado.
+     * Almacenado como FK simple — integridad referencial gestionada
+     * en la capa Service (verifica que el venue exista antes de guardar).
      */
+    @Column(name = "venue_id")
     private Long venueId;
 }
