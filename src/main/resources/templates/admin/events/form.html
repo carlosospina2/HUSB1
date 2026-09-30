@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{fragments/layout :: head('Formulario de Evento')}"></head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+
+            <!-- Título dinámico: "Editar" si el evento tiene ID, "Nuevo" si no -->
+            <div class="d-flex align-items-center gap-2 mb-4">
+                <a th:href="@{/admin/events}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h2 class="mb-0">
+                    <i class="bi bi-calendar-plus me-2 text-primary"></i>
+                    <span th:if="${event.id != null}">Editar Evento</span>
+                    <span th:unless="${event.id != null}">Nuevo Evento</span>
+                </h2>
+            </div>
+
+            <!-- Alerta de error de validación -->
+            <div th:if="${error}" class="alert alert-danger d-flex align-items-center" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span th:text="${error}">Error de validación</span>
+            </div>
+
+            <!-- =============================================================
+                 Formulario de Evento
+                 th:action → resuelve la URL dinámicamente con @{...}
+                 th:object → enlaza el objeto "event" del Model con el formulario
+                 method="post" → HTML solo admite GET/POST
+                 ============================================================= -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+
+                    <!-- Formulario de CREACIÓN -->
+                    <form th:if="${event.id == null}"
+                          th:action="@{/admin/events}"
+                          th:object="${event}"
+                          method="post">
+
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label fw-semibold">
+                                Nombre del Evento <span class="text-danger">*</span>
+                            </label>
+                            <!--
+                                th:field="*{nombre}" → enlaza el campo con event.nombre.
+                                Equivale a name="nombre" + value="${event.nombre}".
+                            -->
+                            <input type="text" id="nombre" th:field="*{nombre}"
+                                   class="form-control" placeholder="Ej: Tech Conference 2025"
+                                   required/>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fecha" class="form-label fw-semibold">
+                                Fecha <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" id="fecha" th:field="*{fecha}"
+                                   class="form-control" required/>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="venueId" class="form-label fw-semibold">Venue</label>
+                            <!--
+                                th:each genera un <option> por cada venue de la lista.
+                                th:value enlaza el ID del venue.
+                                th:text muestra el nombre en el desplegable.
+                            -->
+                            <select id="venueId" th:field="*{venueId}" class="form-select">
+                                <option value="">-- Sin venue asignado --</option>
+                                <option th:each="v : ${venues}"
+                                        th:value="${v.id}"
+                                        th:text="${v.nombre}">Venue</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="descripcion" class="form-label fw-semibold">Descripción</label>
+                            <textarea id="descripcion" th:field="*{descripcion}"
+                                      class="form-control" rows="3"
+                                      placeholder="Descripción opcional del evento..."></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-floppy me-1"></i>Guardar
+                            </button>
+                            <a th:href="@{/admin/events}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+
+                    </form>
+
+                    <!-- Formulario de EDICIÓN (mismo campo pero action diferente) -->
+                    <form th:if="${event.id != null}"
+                          th:action="@{/admin/events/{id}/editar(id=${event.id})}"
+                          th:object="${event}"
+                          method="post">
+
+                        <div class="mb-3">
+                            <label for="nombreEdit" class="form-label fw-semibold">
+                                Nombre del Evento <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="nombreEdit" th:field="*{nombre}"
+                                   class="form-control" required/>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fechaEdit" class="form-label fw-semibold">
+                                Fecha <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" id="fechaEdit" th:field="*{fecha}"
+                                   class="form-control" required/>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="venueIdEdit" class="form-label fw-semibold">Venue</label>
+                            <select id="venueIdEdit" th:field="*{venueId}" class="form-select">
+                                <option value="">-- Sin venue asignado --</option>
+                                <option th:each="v : ${venues}"
+                                        th:value="${v.id}"
+                                        th:text="${v.nombre}">Venue</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="descripcionEdit" class="form-label fw-semibold">Descripción</label>
+                            <textarea id="descripcionEdit" th:field="*{descripcion}"
+                                      class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-pencil-square me-1"></i>Actualizar
+                            </button>
+                            <a th:href="@{/admin/events}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+</body>
+</html>

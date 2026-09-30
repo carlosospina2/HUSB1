@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{fragments/layout :: head('Venues')}"></head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-geo-alt me-2 text-success"></i>Gestión de Venues</h2>
+        <a th:href="@{/admin/venues/nuevo}" class="btn btn-success">
+            <i class="bi bi-plus-circle me-1"></i>Nuevo Venue
+        </a>
+    </div>
+
+    <!-- =================================================================
+         Escenario 2: Sin registros
+         th:unless="${not #lists.isEmpty(venues)}" →
+         se muestra cuando la lista está vacía.
+         ================================================================= -->
+    <div th:unless="${not #lists.isEmpty(venues)}" class="empty-state">
+        <i class="bi bi-building-x"></i>
+        <h5>No hay venues registrados</h5>
+        <p class="text-muted">Registra el primer lugar para comenzar a crear eventos.</p>
+        <a th:href="@{/admin/venues/nuevo}" class="btn btn-outline-success mt-2">
+            <i class="bi bi-plus me-1"></i>Crear primer venue
+        </a>
+    </div>
+
+    <!-- =================================================================
+         Escenario 1: Tabla con datos
+         th:if / th:each / th:text — directivas Thymeleaf aplicadas.
+         ================================================================= -->
+    <div th:if="${not #lists.isEmpty(venues)}" class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-success">
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Dirección</th>
+                        <th class="text-end">Capacidad</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="venue : ${venues}">
+                        <td th:text="${venue.id}">1</td>
+                        <td th:text="${venue.nombre}">Nombre</td>
+                        <td>
+                            <span th:if="${venue.direccion != null and !venue.direccion.isBlank()}"
+                                  th:text="${venue.direccion}" class="text-muted small">Dirección</span>
+                            <span th:unless="${venue.direccion != null and !venue.direccion.isBlank()}"
+                                  class="text-muted small">—</span>
+                        </td>
+                        <td class="text-end">
+                            <span th:text="${#numbers.formatInteger(venue.capacidad, 0, 'COMMA')}"
+                                  class="badge bg-info text-dark">0</span>
+                        </td>
+                        <td class="text-center">
+                            <a th:href="@{/admin/venues/{id}/editar(id=${venue.id})}"
+                               class="btn btn-sm btn-outline-warning me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form th:action="@{/admin/venues/{id}/eliminar(id=${venue.id})}"
+                                  method="post" class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar este venue?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small">
+            Total: <span th:text="${#lists.size(venues)}">0</span> venue(s)
+        </div>
+    </div>
+
+</div>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+</body>
+</html>

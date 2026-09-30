@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{fragments/layout :: head('Eventos')}"></head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-calendar3 me-2 text-primary"></i>Gestión de Eventos</h2>
+        <a th:href="@{/admin/events/nuevo}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Nuevo Evento
+        </a>
+    </div>
+
+    <!-- =================================================================
+         Escenario 2: Catálogo vacío
+         th:unless → se muestra SOLO cuando la lista está vacía.
+         Muestra un mensaje amigable en lugar de una tabla vacía.
+         ================================================================= -->
+    <div th:unless="${not #lists.isEmpty(events)}" class="empty-state">
+        <i class="bi bi-calendar-x"></i>
+        <h5>Actualmente no hay eventos programados</h5>
+        <p class="text-muted">Haz clic en "Nuevo Evento" para agregar el primero.</p>
+        <a th:href="@{/admin/events/nuevo}" class="btn btn-outline-primary mt-2">
+            <i class="bi bi-plus me-1"></i>Crear primer evento
+        </a>
+    </div>
+
+    <!-- =================================================================
+         Escenario 1: Tabla con datos
+         th:if → se muestra SOLO cuando hay al menos un evento.
+         th:each → itera la lista "events" pasada desde el Controller.
+         th:text → renderiza cada campo dinámicamente.
+         ================================================================= -->
+    <div th:if="${not #lists.isEmpty(events)}" class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Fecha</th>
+                        <th>Venue</th>
+                        <th>Descripción</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!--
+                        th:each="event : ${events}"
+                        Itera cada Event de la lista y lo expone como variable "event".
+                        th:text="${event.nombre}" renderiza el valor en la celda.
+                    -->
+                    <tr th:each="event : ${events}">
+                        <td th:text="${event.id}">1</td>
+                        <td th:text="${event.nombre}">Nombre del evento</td>
+                        <td th:text="${#temporals.format(event.fecha, 'dd/MM/yyyy')}">01/01/2025</td>
+                        <td>
+                            <!--
+                                Itera venues para encontrar el que coincide con event.venueId.
+                                th:each con th:if para mostrar solo el que coincide.
+                                Si ninguno coincide (venueId nulo o no existe), muestra "Sin venue".
+                            -->
+                            <th:block th:with="encontrado=${false}">
+                                <th:block th:each="v : ${venues}">
+                                    <span th:if="${v.id == event.venueId}"
+                                          th:text="${v.nombre}"
+                                          class="badge bg-success">Venue</span>
+                                </th:block>
+                                <span th:if="${event.venueId == null}"
+                                      class="badge bg-secondary">Sin venue</span>
+                            </th:block>
+                        </td>
+                        <td>
+                            <span th:if="${event.descripcion != null and !event.descripcion.isBlank()}"
+                                  th:text="${#strings.abbreviate(event.descripcion, 60)}"
+                                  class="text-muted small">Descripción</span>
+                            <span th:unless="${event.descripcion != null and !event.descripcion.isBlank()}"
+                                  class="text-muted small">—</span>
+                        </td>
+                        <td class="text-center">
+                            <a th:href="@{/admin/events/{id}/editar(id=${event.id})}"
+                               class="btn btn-sm btn-outline-warning me-1"
+                               title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <!-- Formulario de eliminación — POST para usar PRG -->
+                            <form th:action="@{/admin/events/{id}/eliminar(id=${event.id})}"
+                                  method="post" class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar este evento?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small">
+            Total: <span th:text="${#lists.size(events)}">0</span> evento(s)
+        </div>
+    </div>
+
+</div>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+</body>
+</html>
