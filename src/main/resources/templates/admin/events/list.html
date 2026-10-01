@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{admin/fragments/layout :: head('Eventos')}"></head>
+<body>
+<nav th:replace="~{admin/fragments/layout :: navbar}"></nav>
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-calendar3 me-2 text-primary"></i>Gestión de Eventos</h2>
+        <a th:href="@{/admin/events/nuevo}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Nuevo Evento
+        </a>
+    </div>
+
+    <!-- =================================================================
+         FILTROS — Escenario 3 y 6
+         Los parámetros city y categoryName viajan en la URL para que
+         la navegación Anterior/Siguiente los mantenga activos.
+         Búsqueda parcial e insensible a mayúsculas (Escenario 6).
+         ================================================================= -->
+    <form th:action="@{/admin/events}" method="get" class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Ciudad</label>
+                    <input type="text" name="city" th:value="${city}"
+                           class="form-control form-control-sm"
+                           placeholder="ej: Bogotá, bog..."/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Categoría</label>
+                    <select name="categoryName" class="form-select form-select-sm">
+                        <option value="">-- Todas --</option>
+                        <option th:each="cat : ${categories}"
+                                th:value="${cat.name}"
+                                th:text="${cat.name}"
+                                th:selected="${cat.name == categoryName}">Categoría</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Filtrar
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a th:href="@{/admin/events}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle me-1"></i>Limpiar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- =================================================================
+         Escenario 2: Catálogo vacío
+         th:unless → mensaje amigable cuando no hay eventos
+         ================================================================= -->
+    <div th:unless="${not #lists.isEmpty(events)}" class="empty-state">
+        <i class="bi bi-calendar-x"></i>
+        <h5>No hay eventos que coincidan con los filtros</h5>
+        <a th:href="@{/admin/events}" class="btn btn-outline-primary mt-2">Ver todos</a>
+    </div>
+
+    <!-- =================================================================
+         Escenario 1 y 2: Tabla de eventos
+         th:each itera EventSummaryDTO (Record).
+         th:text renderiza los campos del Record.
+         ================================================================= -->
+    <div th:if="${not #lists.isEmpty(events)}" class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre del Evento</th>
+                        <th>Fecha</th>
+                        <th>Venue</th>
+                        <th>Ciudad</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!--
+                        th:each="ev : ${events}" — itera List<EventSummaryDTO>.
+                        ev es un Record Java; se accede con ev.eventName(), ev.date(), etc.
+                        Thymeleaf llama automáticamente a los métodos accessor del Record.
+                    -->
+                    <tr th:each="ev : ${events}">
+                        <td th:text="${ev.id()}">1</td>
+                        <td th:text="${ev.eventName()}">Nombre</td>
+                        <td th:text="${#temporals.format(ev.date(), 'dd/MM/yyyy')}">Fecha</td>
+                        <td th:text="${ev.venueName()}">Venue</td>
+                        <td>
+                            <span class="badge bg-info text-dark" th:text="${ev.city()}">Ciudad</span>
+                        </td>
+                        <td class="text-center">
+                            <a th:href="@{/admin/events/{id}/editar(id=${ev.id()})}"
+                               class="btn btn-sm btn-outline-warning me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <!--
+                                Soft Delete — NO es DELETE físico.
+                                El POST invoca softDelete() → active=false.
+                                @SQLRestriction filtra el evento automáticamente.
+                            -->
+                            <form th:action="@{/admin/events/{id}/eliminar(id=${ev.id()})}"
+                                  method="post" class="d-inline"
+                                  onsubmit="return confirm('¿Desactivar este evento? (Soft Delete)')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="Soft Delete">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- =============================================================
+             NAVEGACIÓN SLICE — Escenario 3
+             Anterior / Siguiente con filtros persistentes en la URL.
+             Los botones se deshabilitan según hasPrev y hasNext.
+             Slice NO ejecuta COUNT → más eficiente que Page.
+             ============================================================= -->
+        <div class="card-footer d-flex justify-content-between align-items-center slice-nav">
+            <span class="text-muted small">
+                Página <strong th:text="${currentPage + 1}">1</strong>
+                &nbsp;·&nbsp;
+                Mostrando <strong th:text="${#lists.size(events)}">0</strong> registros
+            </span>
+            <div class="d-flex gap-2">
+                <!--
+                    Escenario 3: los parámetros city y categoryName se mantienen
+                    en los links de navegación th:href.
+                -->
+                <a th:href="@{/admin/events(page=${prevPage}, city=${city}, categoryName=${categoryName})}"
+                   class="btn btn-sm btn-outline-secondary"
+                   th:classappend="${!hasPrev} ? 'disabled' : ''"
+                   th:attr="aria-disabled=${!hasPrev}">
+                    <i class="bi bi-arrow-left me-1"></i>Anterior
+                </a>
+                <a th:href="@{/admin/events(page=${nextPage}, city=${city}, categoryName=${categoryName})}"
+                   class="btn btn-sm btn-outline-primary"
+                   th:classappend="${!hasNext} ? 'disabled' : ''"
+                   th:attr="aria-disabled=${!hasNext}">
+                    Siguiente<i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+<footer th:replace="~{admin/fragments/layout :: footer}"></footer>
+<div th:replace="~{admin/fragments/layout :: scripts}"></div>
+</body>
+</html>

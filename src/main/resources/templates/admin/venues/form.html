@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{admin/fragments/layout :: head('Formulario Venue')}"></head>
+<body>
+<nav th:replace="~{admin/fragments/layout :: navbar}"></nav>
+<div class="container">
+<div class="row justify-content-center">
+<div class="col-lg-6">
+
+    <div class="d-flex align-items-center gap-2 mb-4">
+        <a th:href="@{/admin/venues}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="mb-0">
+            <i class="bi bi-geo-alt me-2 text-success"></i>
+            <span th:if="${venue.id != null}">Editar Venue</span>
+            <span th:unless="${venue.id != null}">Nuevo Venue</span>
+        </h2>
+    </div>
+
+    <div th:if="${error}" class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${error}">Error</span>
+    </div>
+
+    <div class="card shadow-sm">
+    <div class="card-body p-4">
+        <form th:action="${venue.id != null}
+                         ? @{/admin/venues/{id}/editar(id=${venue.id})}
+                         : @{/admin/venues}"
+              th:object="${venue}" method="post">
+
+            <div class="mb-3">
+                <label for="name" class="form-label fw-semibold">
+                    Nombre <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="name" th:field="*{name}"
+                       class="form-control" required
+                       placeholder="Ej: Centro de Convenciones"/>
+            </div>
+
+            <div class="mb-3">
+                <label for="city" class="form-label fw-semibold">
+                    Ciudad <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="city" th:field="*{city}"
+                       class="form-control" required
+                       placeholder="Ej: Bogotá"/>
+            </div>
+
+            <div class="mb-3">
+                <label for="address" class="form-label fw-semibold">Dirección</label>
+                <input type="text" id="address" th:field="*{address}"
+                       class="form-control"
+                       placeholder="Ej: Calle 26 # 59-41"/>
+            </div>
+
+            <div class="mb-4">
+                <label for="capacity" class="form-label fw-semibold">
+                    Capacidad <span class="text-danger">*</span>
+                </label>
+                <input type="number" id="capacity" th:field="*{capacity}"
+                       class="form-control" min="1" required/>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit"
+                        th:class="${venue.id != null} ? 'btn btn-warning' : 'btn btn-success'">
+                    <i class="bi bi-floppy me-1"></i>
+                    <span th:if="${venue.id != null}">Actualizar</span>
+                    <span th:unless="${venue.id != null}">Guardar</span>
+                </button>
+                <a th:href="@{/admin/venues}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+    </div>
+</div>
+</div>
+</div>
+<footer th:replace="~{admin/fragments/layout :: footer}"></footer>
+<div th:replace="~{admin/fragments/layout :: scripts}"></div>
+</body>
+</html>

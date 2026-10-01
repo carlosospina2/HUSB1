@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{admin/fragments/layout :: head('Formulario Evento')}"></head>
+<body>
+<nav th:replace="~{admin/fragments/layout :: navbar}"></nav>
+<div class="container">
+<div class="row justify-content-center">
+<div class="col-lg-8">
+
+    <div class="d-flex align-items-center gap-2 mb-4">
+        <a th:href="@{/admin/events}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="mb-0">
+            <i class="bi bi-calendar-plus me-2 text-primary"></i>
+            <span th:if="${event.id != null}">Editar Evento</span>
+            <span th:unless="${event.id != null}">Nuevo Evento</span>
+        </h2>
+    </div>
+
+    <div th:if="${error}" class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${error}">Error</span>
+    </div>
+
+    <div class="card shadow-sm">
+    <div class="card-body p-4">
+
+        <!--
+            Formulario unificado para creación y edición.
+            La action cambia según si el evento tiene ID o no.
+            Los campos se envían como @RequestParam en el controller.
+        -->
+        <form th:action="${event.id != null}
+                         ? @{/admin/events/{id}/editar(id=${event.id})}
+                         : @{/admin/events}"
+              method="post">
+
+            <!-- Nombre -->
+            <div class="mb-3">
+                <label for="name" class="form-label fw-semibold">
+                    Nombre <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="name" name="name"
+                       th:value="${event.name}"
+                       class="form-control" required
+                       placeholder="Ej: Concierto de Jazz 2025"/>
+            </div>
+
+            <!-- Fecha -->
+            <div class="mb-3">
+                <label for="date" class="form-label fw-semibold">
+                    Fecha <span class="text-danger">*</span>
+                </label>
+                <input type="date" id="date" name="date"
+                       th:value="${event.date}"
+                       class="form-control" required/>
+            </div>
+
+            <!-- Descripción -->
+            <div class="mb-3">
+                <label for="description" class="form-label fw-semibold">Descripción</label>
+                <textarea id="description" name="description"
+                          class="form-control" rows="3"
+                          placeholder="Descripción opcional..."
+                          th:text="${event.description}"></textarea>
+            </div>
+
+            <!-- =====================================================================
+                 SELECT de Venue — relación Many-to-One obligatoria
+                 th:each genera una <option> por cada Venue disponible.
+                 th:selected marca el venue actual del evento al editar.
+                 ===================================================================== -->
+            <div class="mb-4">
+                <label for="venueId" class="form-label fw-semibold">
+                    Venue <span class="text-danger">*</span>
+                </label>
+                <select id="venueId" name="venueId" class="form-select" required>
+                    <option value="">-- Seleccionar venue --</option>
+                    <option th:each="v : ${venues}"
+                            th:value="${v.id}"
+                            th:text="${v.name} + ' — ' + ${v.city}"
+                            th:selected="${event.venue != null and event.venue.id == v.id}">
+                        Venue
+                    </option>
+                </select>
+            </div>
+
+            <!-- =====================================================================
+                 CHECKBOXES de Category — relación Many-to-Many
+                 th:each genera un checkbox por cada categoría.
+                 th:checked marca las categorías ya asignadas al evento (al editar).
+                 selectedCategoryIds contiene los IDs actualmente seleccionados.
+                 ===================================================================== -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    Categorías <span class="text-muted small">(selecciona una o más)</span>
+                </label>
+                <div class="row row-cols-2 row-cols-md-3 g-2">
+                    <div th:each="cat : ${categories}" class="col">
+                        <div class="form-check border rounded p-2">
+                            <input class="form-check-input" type="checkbox"
+                                   name="categoryIds"
+                                   th:value="${cat.id}"
+                                   th:id="${'cat-' + cat.id}"
+                                   th:checked="${selectedCategoryIds != null and #lists.contains(selectedCategoryIds, cat.id)}"/>
+                            <label class="form-check-label"
+                                   th:for="${'cat-' + cat.id}"
+                                   th:text="${cat.name}">Categoría</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit"
+                        th:class="${event.id != null} ? 'btn btn-warning' : 'btn btn-primary'">
+                    <i class="bi bi-floppy me-1"></i>
+                    <span th:if="${event.id != null}">Actualizar</span>
+                    <span th:unless="${event.id != null}">Guardar</span>
+                </button>
+                <a th:href="@{/admin/events}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+
+        </form>
+    </div>
+    </div>
+
+</div>
+</div>
+</div>
+<footer th:replace="~{admin/fragments/layout :: footer}"></footer>
+<div th:replace="~{admin/fragments/layout :: scripts}"></div>
+</body>
+</html>
